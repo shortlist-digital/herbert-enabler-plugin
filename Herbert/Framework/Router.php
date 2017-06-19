@@ -1,420 +1,388 @@
 <?php namespace Herbert\Framework;
 
 use Closure;
-use InvalidArgumentException;
 use Herbert\Framework\Exceptions\HttpErrorException;
+use InvalidArgumentException;
 
 /**
  * @see http://getherbert.com
  *
- * @method void get()    get(array $parameters)    Adds a get route.
- * @method void post()   post(array $parameters)   Adds a post route.
- * @method void put()    put(array $parameters)    Adds a put route.
- * @method void patch()  patch(array $parameters)  Adds a patch route.
- * @method void delete() delete(array $parameters) Adds a delete route.
+ * @method void get()    get( array $parameters )    Adds a get route.
+ * @method void post()   post( array $parameters )   Adds a post route.
+ * @method void put()    put( array $parameters )    Adds a put route.
+ * @method void patch()  patch( array $parameters )  Adds a patch route.
+ * @method void delete() delete( array $parameters ) Adds a delete route.
  */
 class Router {
 
-    /**
-     * @var array
-     */
-    protected static $methods = [
-        'GET',
-        'POST',
-        'PUT',
-        'PATCH',
-        'DELETE'
-    ];
+	/**
+	 * @var array
+	 */
+	protected static $methods = [
+		'GET',
+		'POST',
+		'PUT',
+		'PATCH',
+		'DELETE'
+	];
 
-    /**
-     * @var \Herbert\Framework\Application
-     */
-    protected $app;
+	/**
+	 * @var \Herbert\Framework\Application
+	 */
+	protected $app;
 
-    /**
-     * @var \Herbert\Framework\Http
-     */
-    protected $http;
+	/**
+	 * @var \Herbert\Framework\Http
+	 */
+	protected $http;
 
-    /**
-     * @var array
-     */
-    protected $routes = [
-        'GET' => [],
-        'POST' => [],
-        'PUT' => [],
-        'PATCH' => [],
-        'DELETE' => [],
-        'named' => []
-    ];
+	/**
+	 * @var array
+	 */
+	protected $routes = [
+		'GET'    => [],
+		'POST'   => [],
+		'PUT'    => [],
+		'PATCH'  => [],
+		'DELETE' => [],
+		'named'  => []
+	];
 
-    /**
-     * The current namespace.
-     *
-     * @var string|null
-     */
-    protected $namespace = null;
+	/**
+	 * The current namespace.
+	 *
+	 * @var string|null
+	 */
+	protected $namespace = null;
 
-    /**
-     * @var string
-     */
-    protected $parameterPattern = '/{([\w\d]+)}/';
+	/**
+	 * @var string
+	 */
+	protected $parameterPattern = '/{([\w\d]+)}/';
 
-    /**
-     * @var string
-     */
-    protected $valuePattern = '(?P<$1>[^\/]+)';
+	/**
+	 * @var string
+	 */
+	protected $valuePattern = '(?P<$1>[^\/]+)';
 
-    /**
-     * @var string
-     */
-    protected $valuePatternReplace = '([^\/]+)';
+	/**
+	 * @var string
+	 */
+	protected $valuePatternReplace = '([^\/]+)';
 
-    /**
-     * Adds the action hooks for WordPress.
-     *
-     * @param \Herbert\Framework\Application $app
-     * @param \Herbert\Framework\Http        $http
-     */
-    public function __construct(Application $app, Http $http)
-    {
-        $this->app = $app;
-        $this->http = $http;
+	/**
+	 * Adds the action hooks for WordPress.
+	 *
+	 * @param \Herbert\Framework\Application $app
+	 * @param \Herbert\Framework\Http $http
+	 */
+	public function __construct( Application $app, Http $http ) {
+		$this->app  = $app;
+		$this->http = $http;
 
-        add_action('wp_loaded', [$this, 'flush']);
-        add_action('init', [$this, 'boot']);
-        add_action('parse_request', [$this, 'parseRequest']);
-    }
+		add_action( 'init', [ $this, 'boot' ] );
+		add_action( 'parse_request', [ $this, 'parseRequest' ] );
+	}
 
-    /**
-     * Boot the router.
-     *
-     * @return void
-     */
-    public function boot()
-    {
-        add_rewrite_tag('%herbert_route%', '(.+)');
-        
-        if(is_array($this->routes[$this->http->method()]))
-        {
-            foreach ($this->routes[$this->http->method()] as $id => $route)
-            {
-                $this->addRoute($route, $id, $this->http->method());
-            } 
-        }
-        
-    }
+	/**
+	 * Boot the router.
+	 *
+	 * @return void
+	 */
+	public function boot() {
+		add_rewrite_tag( '%herbert_route%', '(.+)' );
+		foreach ( $this->routes as $method => $ar ) {
+			foreach ( $this->routes[ $method ] as $id => $route ) {
+				$this->addRoute( $route, $id, $method );
+			}
+		}
+	}
 
-    /**
-     * Adds the route to WordPress.
-     *
-     * @param $route
-     * @param $id
-     * @param $method
-     */
-    protected function addRoute($route, $id, $method)
-    {
-        $params = [
-            'id' => $id,
-            'parameters' => []
-        ];
+	/**
+	 * Adds the route to WordPress.
+	 *
+	 * @param $route
+	 * @param $id
+	 * @param $method
+	 */
+	protected function addRoute( $route, $id, $method ) {
+		$params = [
+			'id'         => $id,
+			'parameters' => []
+		];
 
-        $uri = '^' . preg_replace(
-            $this->parameterPattern,
-            $this->valuePatternReplace,
-            str_replace('/', '\\/', $route['uri'])
-        );
+		$uri = '^' . preg_replace(
+				$this->parameterPattern,
+				$this->valuePatternReplace,
+				str_replace( '/', '\\/', $route['uri'] )
+			);
 
-        $url = 'index.php?';
+		$url = 'index.php?';
 
-        $matches = [];
-        if (preg_match_all($this->parameterPattern, $route['uri'], $matches))
-        {
-            foreach ($matches[1] as $id => $param)
-            {
-                add_rewrite_tag('%herbert_param_' . $param . '%', '(.+)');
-                $url .= 'herbert_param_' . $param . '=$matches[' . ($id + 1) . ']&';
-                $params['parameters'][$param] = null;
-            }
-        }
+		$matches = [];
+		if ( preg_match_all( $this->parameterPattern, $route['uri'], $matches ) ) {
+			foreach ( $matches[1] as $id => $param ) {
+				add_rewrite_tag( '%herbert_param_' . $param . '%', '(.+)' );
+				$url                            .= 'herbert_param_' . $param . '=$matches[' . ( $id + 1 ) . ']&';
+				$params['parameters'][ $param ] = null;
+			}
+		}
 
-        add_rewrite_rule($uri . '$', $url . 'herbert_route=' . urlencode(json_encode($params)), 'top');
-    }
+		add_rewrite_rule( $uri . '$', $url . 'herbert_route=' . urlencode( json_encode( $params ) ), 'top' );
+	}
 
-    /**
-     * @param $method
-     * @param $parameters
-     * @return bool
-     */
-    public function add($method, $parameters)
-    {
-        if ( ! in_array($method, static::$methods))
-        {
-            return false;
-        }
+	/**
+	 * @param $method
+	 * @param $parameters
+	 *
+	 * @return bool
+	 */
+	public function add( $method, $parameters ) {
 
-        if ($parameters instanceof Closure)
-        {
-            $parameters = [ 'uses' => $parameters ];
-        }
 
-        foreach (['uri', 'uses'] as $key)
-        {
-            if (isset($parameters[$key]))
-            {
-                continue;
-            }
+		if ( ! in_array( $method, static::$methods ) ) {
+			return false;
+		}
 
-            throw new InvalidArgumentException("Missing {$key} definition for route");
-        }
+		if ( $parameters instanceof Closure ) {
+			$parameters = [ 'uses' => $parameters ];
+		}
 
-        $route = array_merge($parameters, [
-            'uri' => ltrim($parameters['uri'], '/')
-        ]);
+		foreach ( [ 'uri', 'uses' ] as $key ) {
+			if ( isset( $parameters[ $key ] ) ) {
+				continue;
+			}
 
-        $this->routes[$method][] = $route;
+			throw new InvalidArgumentException( "Missing {$key} definition for route" );
+		}
 
-        if (isset($route['as']))
-        {
-            $this->routes['named'][$method . '::' . $this->namespaceAs($route['as'])] = $route;
-        }
+		$route = array_merge( $parameters, [
+			'uri' => ltrim( $parameters['uri'], '/' )
+		] );
 
-        return true;
-    }
+		$this->routes[ $method ][ $method . '::' . $this->namespaceAs( $route['as'] ) ] = $route;
 
-    /**
-     * Flushes WordPress's rewrite rules.
-     *
-     * @return void
-     */
-    public function flush()
-    {
-        flush_rewrite_rules();
-    }
+		if ( isset( $route['as'] ) ) {
 
-    /**
-     * Parses a WordPress request.
-     *
-     * @param $wp
-     * @return void
-     */
-    public function parseRequest($wp)
-    {
-        if ( ! array_key_exists('herbert_route', $wp->query_vars))
-        {
-            return;
-        }
+			$this->routes['named'][ $method . '::' . $this->namespaceAs( $route['as'] ) ] = $route;
+		}
 
-        $data = @json_decode($wp->query_vars['herbert_route'], true);
-        $route = null;
+		return true;
+	}
 
-        if (isset($data['id']) && isset($this->routes[$this->http->method()][$data['id']]))
-        {
-            $route = $this->routes[$this->http->method()][$data['id']];
-        }
-        elseif (isset($data['name']) && isset($this->routes['named'][$data['name']]))
-        {
-            $route = $this->routes['named'][$data['name']];
-        }
+	/**
+	 * Flushes WordPress's rewrite rules.
+	 *
+	 * @return void
+	 */
+	public function flush() {
+		flush_rewrite_rules();
+	}
 
-        if ( ! isset($route))
-        {
-            return;
-        }
+	/**
+	 * Parses a WordPress request.
+	 *
+	 * @param $wp
+	 *
+	 * @return void
+	 */
+	public function parseRequest( $wp ) {
 
-        if ( ! isset($data['parameters']))
-        {
-            $data['parameters'] = [];
-        }
 
-        foreach ($data['parameters'] as $key => $val)
-        {
-            if ( ! isset($wp->query_vars['herbert_param_' . $key]))
-            {
-                return;
-            }
+		if ( ! array_key_exists( 'herbert_route', $wp->query_vars ) ) {
+			return;
+		}
 
-            $data['parameters'][$key] = $wp->query_vars['herbert_param_' . $key];
-        }
+		$data = @json_decode( $wp->query_vars['herbert_route'], true );
 
-        try {
-            $this->processRequest(
-                $this->buildRoute(
-                    $route,
-                    $data['parameters']
-                )
-            );
-        } catch (HttpErrorException $e) {
-            if ($e->getStatus() === 301 || $e->getStatus() === 302)
-            {
-                $this->processResponse($e->getResponse());
+		$route = null;
 
-                die;
-            }
+		if ( isset( $data['id'] ) && isset( $this->routes[ $this->http->method() ][ $data['id'] ] ) ) {
+			$route = $this->routes[ $this->http->method() ][ $data['id'] ];
+		} elseif ( isset( $data['name'] ) && isset( $this->routes['named'][ $data['name'] ] ) ) {
+			$route = $this->routes['named'][ $data['name'] ];
+		}
 
-            if ($e->getStatus() === 404)
-            {
-                global $wp_query;
-                $wp_query->set_404();
-            }
 
-            status_header($e->getStatus());
+		if ( ! isset( $route ) ) {
+			return;
+		}
 
-            define('HERBERT_HTTP_ERROR_CODE', $e->getStatus());
-            define('HERBERT_HTTP_ERROR_MESSAGE', $e->getMessage());
+		if ( ! isset( $data['parameters'] ) ) {
+			$data['parameters'] = [];
+		}
 
-            if ($e->getStatus() === 404)
-            {
-                @include get_404_template();
-            }
-            else
-            {
-                echo $e->getMessage();
-            }
-        }
+		foreach ( $data['parameters'] as $key => $val ) {
+			if ( ! isset( $wp->query_vars[ 'herbert_param_' . $key ] ) ) {
+				return;
+			}
 
-        die;
-    }
+			$data['parameters'][ $key ] = $wp->query_vars[ 'herbert_param_' . $key ];
+		}
 
-    /**
-     * Build a route instance.
-     *
-     * @param $data
-     * @param $params
-     * @return \Herbert\Framework\Route
-     */
-    protected function buildRoute($data, $params)
-    {
-        return new Route($this->app, $data, $params);
-    }
+		try {
 
-    /**
-     * Processes a request.
-     *
-     * @param \Herbert\Framework\Route $route
-     * @return void
-     */
-    protected function processRequest(Route $route)
-    {
-        $this->processResponse($route->handle());
-    }
+			$this->processRequest(
+				$this->buildRoute(
+					$route,
+					$data['parameters']
+				)
+			);
+		} catch ( HttpErrorException $e ) {
+			if ( $e->getStatus() === 301 || $e->getStatus() === 302 ) {
+				$this->processResponse( $e->getResponse() );
+				die;
+			}
 
-    /**
-     * Processes a response.
-     *
-     * @param  \Herbert\Framework\Response $response
-     * @return void
-     */
-    protected function processResponse(Response $response)
-    {
-        if ($response instanceof RedirectResponse)
-        {
-            $response->flash();
-        }
+			if ( $e->getStatus() === 404 ) {
+				global $wp_query;
+				$wp_query->set_404();
+			}
 
-        status_header($response->getStatusCode());
+			status_header( $e->getStatus() );
 
-        foreach ($response->getHeaders() as $key => $value)
-        {
-            @header($key . ': ' . $value);
-        }
+			define( 'HERBERT_HTTP_ERROR_CODE', $e->getStatus() );
+			define( 'HERBERT_HTTP_ERROR_MESSAGE', $e->getMessage() );
 
-        echo $response->getBody();
-    }
+			if ( $e->getStatus() === 404 ) {
+				@include get_404_template();
+			} else {
+				echo $e->getMessage();
+			}
+		}
 
-    /**
-     * Get the URL to a route.
-     *
-     * @param  string $name
-     * @param  array  $args
-     * @return string
-     */
-    public function url($name, $args = [])
-    {
-        $route = null;
-        $routes = $this->routes['named'];
-        foreach (self::$methods as $method)
-        {
-            if ( ! isset($routes[$method . '::' . $name]))
-            {
-                continue;
-            }
+		die;
+	}
 
-            $route = $routes[$method . '::' . $name];
-        }
+	/**
+	 * Build a route instance.
+	 *
+	 * @param $data
+	 * @param $params
+	 *
+	 * @return \Herbert\Framework\Route
+	 */
+	protected function buildRoute( $data, $params ) {
+		return new Route( $this->app, $data, $params );
+	}
 
-        if ($route === null)
-        {
-            return null;
-        }
+	/**
+	 * Processes a request.
+	 *
+	 * @param \Herbert\Framework\Route $route
+	 *
+	 * @return void
+	 */
+	protected function processRequest( Route $route ) {
+		$this->processResponse( $route->handle() );
+	}
 
-        $matches = [];
-        preg_match_all($this->parameterPattern, $uri = $route['uri'], $matches);
-        foreach ($matches[0] as $id => $match)
-        {
-            $uri = preg_replace('/' . preg_quote($match) . '/', array_get($args, $matches[1][$id], $match), $uri, 1);
-        }
+	/**
+	 * Processes a response.
+	 *
+	 * @param  \Herbert\Framework\Response $response
+	 *
+	 * @return void
+	 */
+	protected function processResponse( Response $response ) {
+		if ( $response instanceof RedirectResponse ) {
+			$response->flash();
+		}
 
-        return home_url() . '/' . $uri;
-    }
+		status_header( $response->getStatusCode() );
 
-    /**
-     * Sets the current namespace.
-     *
-     * @param  string $namespace
-     * @return void
-     */
-    public function setNamespace($namespace)
-    {
-        $this->namespace = $namespace;
-    }
+		foreach ( $response->getHeaders() as $key => $value ) {
+			@header( $key . ': ' . $value );
+		}
 
-    /**
-     * Unsets the current namespace.
-     *
-     * @return void
-     */
-    public function unsetNamespace()
-    {
-        $this->namespace = null;
-    }
+		echo $response->getBody();
+	}
 
-    /**
-     * Namespaces a name.
-     *
-     * @param  string $as
-     * @return string
-     */
-    protected function namespaceAs($as)
-    {
-        if ($this->namespace === null)
-        {
-            return $as;
-        }
+	/**
+	 * Get the URL to a route.
+	 *
+	 * @param  string $name
+	 * @param  array $args
+	 *
+	 * @return string
+	 */
+	public function url( $name, $args = [] ) {
+		$route  = null;
+		$routes = $this->routes['named'];
+		foreach ( self::$methods as $method ) {
+			if ( ! isset( $routes[ $method . '::' . $name ] ) ) {
+				continue;
+			}
 
-        return $this->namespace . '::' . $as;
-    }
+			$route = $routes[ $method . '::' . $name ];
+		}
 
-    /**
-     * Magic method calling.
-     *
-     * @param       $method
-     * @param array $parameters
-     * @return mixed
-     */
-    public function __call($method, $parameters = [])
-    {
-        if (method_exists($this, $method))
-        {
-            return call_user_func_array([$this, $method], $parameters);
-        }
+		if ( $route === null ) {
+			return null;
+		}
 
-        if (in_array(strtoupper($method), static::$methods))
-        {
-            return call_user_func_array([$this, 'add'], array_merge([strtoupper($method)], $parameters));
-        }
+		$matches = [];
+		preg_match_all( $this->parameterPattern, $uri = $route['uri'], $matches );
+		foreach ( $matches[0] as $id => $match ) {
+			$uri = preg_replace( '/' . preg_quote( $match ) . '/', array_get( $args, $matches[1][ $id ], $match ), $uri, 1 );
+		}
 
-        throw new InvalidArgumentException("Method {$method} not defined");
-    }
+		return home_url() . '/' . $uri;
+	}
+
+	/**
+	 * Sets the current namespace.
+	 *
+	 * @param  string $namespace
+	 *
+	 * @return void
+	 */
+	public function setNamespace( $namespace ) {
+		$this->namespace = $namespace;
+	}
+
+	/**
+	 * Unsets the current namespace.
+	 *
+	 * @return void
+	 */
+	public function unsetNamespace() {
+		$this->namespace = null;
+	}
+
+	/**
+	 * Namespaces a name.
+	 *
+	 * @param  string $as
+	 *
+	 * @return string
+	 */
+	protected function namespaceAs( $as ) {
+		if ( $this->namespace === null ) {
+			return $as;
+		}
+
+		return $this->namespace . '::' . $as;
+	}
+
+	/**
+	 * Magic method calling.
+	 *
+	 * @param       $method
+	 * @param array $parameters
+	 *
+	 * @return mixed
+	 */
+	public function __call( $method, $parameters = [] ) {
+		if ( method_exists( $this, $method ) ) {
+			return call_user_func_array( [ $this, $method ], $parameters );
+		}
+
+		if ( in_array( strtoupper( $method ), static::$methods ) ) {
+			return call_user_func_array( [ $this, 'add' ], array_merge( [ strtoupper( $method ) ], $parameters ) );
+		}
+
+		throw new InvalidArgumentException( "Method {$method} not defined" );
+	}
 
 }
