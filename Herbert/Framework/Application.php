@@ -180,7 +180,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
     {
         if ( ! isset($this->configurations[$root]))
         {
-            $this->configurations[$root] = @require_once "$root/herbert.config.php" ?: [];
+            $this->configurations[$root] = require_once "$root/herbert.config.php" ?: [];
         }
 
         return $this->configurations[$root];
@@ -313,7 +313,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 
         foreach ($requires as $require)
         {
-            @require_once "$require";
+            require_once "$require";
         }
     }
 
@@ -334,7 +334,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 
             foreach ((array) $requires as $require)
             {
-                @require_once "$require";
+                require_once "$require";
             }
 
             $router->unsetNamespace();
@@ -358,7 +358,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 
             foreach ((array) $requires as $require)
             {
-                @require_once "$require";
+                require_once "$require";
             }
 
             $panel->unsetNamespace();
@@ -378,7 +378,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 
         foreach ($requires as $require)
         {
-            @require_once "$require";
+            require_once "$require";
         }
     }
 
@@ -660,7 +660,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
             $$ref = $this[$ref];
         }
 
-        @require $file;
+        require $file;
     }
 
     /**
@@ -1274,4 +1274,21 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
         return $this->basePath() . '/vendor/services.json';
     }
 
+	/**
+	 * Determine if we are running in the console.
+	 *
+	 * @return bool
+	 */
+	public function runningInConsole() {
+		// TODO: Implement runningInConsole() method.
+	}
+
+	/**
+	 * Get the path to the cached packages.php file.
+	 *
+	 * @return string
+	 */
+	public function getCachedPackagesPath() {
+		// TODO: Implement getCachedPackagesPath() method.
+	}
 }

@@ -1,80 +1,73 @@
 <?php
 
-/**
- * Ensure this is only ran once.
- */
-if ( defined( 'HERBERT_AUTOLOAD' ) ) {
-	return;
-}
-
-define( 'HERBERT_AUTOLOAD', 1 );
-
-require 'helpers.php';
+require __DIR__ . '/helpers.php';
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 /**
  * Get Herbert.
  */
+
 $herbert = Herbert\Framework\Application::getInstance();
 
 /**
  * Load all herbert.php files in plugin roots.
  * Makes sure that paths are not throwing errors.
  */
-try {
-	$iterator1 = new DirectoryIterator( WP_CONTENT_DIR );
-} catch ( \UnexpectedValueException $e ) {
+
+
+$iterator1 = glob( WP_PLUGIN_DIR . '/*' );
+
+$iterator2 = glob( WPMU_PLUGIN_DIR . '/*' );
+
+if ( ! $iterator1 ) {
 	$iterator1 = [];
 }
-
-try {
-	$iterator2 = new DirectoryIterator( WPMU_CONTENT_DIR );
-} catch ( \UnexpectedValueException $e ) {
+if ( ! $iterator2 ) {
 	$iterator2 = [];
 }
+
 /**
  * Following bedrock we will load mu-plugins first
+ *
+ * @var $iterator1 []
+ * @var $iterator2 []
  */
-$iterator = array_merge( iterator_to_array( $iterator2 ), iterator_to_array( $iterator1 ) );
-
-
+$iterator = array_merge( $iterator2, $iterator1 );
 foreach ( $iterator as $directory ) {
 	/**
-	 * @var $directory DirectoryIterator
+	 * @var $directory string
 	 */
-	if ( ! $directory->valid() || $directory->isDot() || ! $directory->isDir() ) {
+
+
+	if ( ! file_exists( $directory . '/herbert.config.php' ) ) {
+
 		continue;
 	}
 
-	$root = $directory->getPath() . '/' . $directory->getFilename();
+	$config = $herbert->getPluginConfig( $directory );
 
-	if ( ! file_exists( $root . '/herbert.config.php' ) ) {
-		continue;
-	}
+	$plugin = basename( $directory );
 
-	$config = $herbert->getPluginConfig( $root );
-
-	$plugin = $directory->getFilename();
-
-	register_activation_hook( $plugin, function () use ( $herbert, $config, $root, $plugin ) {
+	register_activation_hook( $plugin, function () use ( $herbert, $config, $directory, $plugin ) {
 
 		$herbert->loadPlugin( $config );
-		$herbert->activatePlugin( $root );
+		$herbert->activatePlugin( $directory );
 
 		// Ugly hack to make the install hook work correctly
 		// as WP doesn't allow closures to be passed here
 		// Makes sure hook is only added when plugin is activated not on every run.
-		register_uninstall_hook( $plugin, create_function( '', 'herbert()->deletePlugin(\'' . $root . '\');' ) );
+		register_uninstall_hook( $plugin, create_function( '', 'herbert()->deletePlugin(\'' . $directory . '\');' ) );
 	} );
 
-	register_deactivation_hook( $plugin, function () use ( $herbert, $root ) {
-		$herbert->deactivatePlugin( $root );
+	register_deactivation_hook( $plugin, function () use ( $herbert, $directory ) {
+		$herbert->deactivatePlugin( $directory );
 	} );
 
-	if ( ! is_plugin_active( $plugin ) ) {
+	if ( strpos( $directory, WPMU_PLUGIN_DIR ) === false && ! ( is_plugin_active( $plugin . '/' . $plugin . '.php' ) || is_plugin_active( $plugin . '/plugin.php' ) ) ) {
 		continue;
 	}
 
-	$herbert->pluginMatched( $root );
+	$herbert->pluginMatched( $directory );
 
 	$herbert->loadPlugin( $config );
 }
