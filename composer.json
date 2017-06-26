@@ -2,6 +2,7 @@
   "name": "shortlist-digital/herbert-framework",
   "description": "Herbert",
   "license": "MIT",
+  "type": "wordpress-plugin",
   "require": {
     "twig/twig": "~1.16",
     "illuminate/database": "~5.0",
