@@ -452,7 +452,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
             $api = $$name = new API($this);
             $this->apis[] = [$name, $api];
 
-            require "$require";
+            @require "$require";
         }
     }
 
