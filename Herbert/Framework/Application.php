@@ -660,7 +660,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
             $$ref = $this[$ref];
         }
 
-        require $file;
+        @require $file;
     }
 
     /**
@@ -712,7 +712,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 //
 //        foreach ($requires as $require)
 //        {
-//            require "$require";
+//            @require "$require";
 //        }
 //    }
 
@@ -728,7 +728,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 //
 //        foreach ($requires as $require)
 //        {
-//            require "$require";
+//            @require "$require";
 //        }
 //    }
 
@@ -744,7 +744,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 //
 //        foreach ($requires as $require)
 //        {
-//            require "$require";
+//            @require "$require";
 //        }
 //    }
 
