@@ -180,7 +180,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
     {
         if ( ! isset($this->configurations[$root]))
         {
-            $this->configurations[$root] = require_once "$root/herbert.config.php" ?: [];
+            $this->configurations[$root] = @require_once "$root/herbert.config.php" ?: [];
         }
 
         return $this->configurations[$root];
@@ -313,7 +313,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 
         foreach ($requires as $require)
         {
-            require_once "$require";
+            @require_once "$require";
         }
     }
 
@@ -334,7 +334,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 
             foreach ((array) $requires as $require)
             {
-                require_once "$require";
+                @require_once "$require";
             }
 
             $router->unsetNamespace();
@@ -358,7 +358,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 
             foreach ((array) $requires as $require)
             {
-                require_once "$require";
+                @require_once "$require";
             }
 
             $panel->unsetNamespace();
@@ -378,7 +378,7 @@ class Application extends \Illuminate\Container\Container implements \Illuminate
 
         foreach ($requires as $require)
         {
-            require_once "$require";
+            @require_once "$require";
         }
     }
 
