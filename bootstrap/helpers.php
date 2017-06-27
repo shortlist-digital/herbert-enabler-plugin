@@ -21,7 +21,7 @@ if ( ! function_exists( 'content_directory' ) ) {
 	 * @deprecated
 	 */
 	function content_directory() {
-		trigger_error('Use WP_CONTENT_DIR instead', E_USER_NOTICE);
+	//	trigger_error('Use WP_CONTENT_DIR instead', E_USER_NOTICE);
 		return WP_CONTENT_DIR;
 	}
 }
@@ -34,7 +34,7 @@ if ( ! function_exists( 'plugin_directory' ) ) {
 	 * @deprecated
 	 */
 	function plugin_directory() {
-		trigger_error('Use WP_PLUGIN_DIR instead', E_USER_NOTICE);
+	//	trigger_error('Use WP_PLUGIN_DIR instead', E_USER_NOTICE);
 		return WP_PLUGIN_DIR;
 	}
 }
