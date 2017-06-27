@@ -21,7 +21,8 @@ if ( ! function_exists( 'content_directory' ) ) {
 	 * @deprecated
 	 */
 	function content_directory() {
-		trigger_error('Use WP_CONTENT_DIR instead', E_USER_NOTICE);
+		trigger_error( 'Use WP_CONTENT_DIR instead', E_USER_NOTICE );
+
 		return WP_CONTENT_DIR;
 	}
 }
@@ -31,12 +32,22 @@ if ( ! function_exists( 'plugin_directory' ) ) {
 	 * Gets the plugin directory.
 	 *
 	 * @return string
-	 * @deprecated
 	 */
-	function plugin_directory() {
-		trigger_error('Use WP_PLUGIN_DIR instead', E_USER_NOTICE);
-		return WP_PLUGIN_DIR;
+	function plugin_directory( $path = false ) {
+
+		if ( ! $path ) {
+			trigger_error( 'plugin_directory without parameter is deprecated', E_USER_NOTICE );
+		}
+
+		if ( strpos( $path, '/mu-plugins/' ) !== false ) {
+			return WPMU_PLUGIN_DIR;
+		} elseif ( strpos( $path, '/plugins/' ) !== false ) {
+			return WP_PLUGIN_DIR;
+		}
+
+		return false;
 	}
+
 }
 if ( ! function_exists( 'muplugin_directory' ) ) {
 	/**
@@ -46,7 +57,8 @@ if ( ! function_exists( 'muplugin_directory' ) ) {
 	 * @deprecated
 	 */
 	function muplugin_directory() {
-		trigger_error('Use WPMU_PLUGIN_DIR instead', E_USER_NOTICE);
+		trigger_error( 'Use WPMU_PLUGIN_DIR instead', E_USER_NOTICE );
+
 		return WPMU_PLUGIN_DIR;
 	}
 }
